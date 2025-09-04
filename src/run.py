@@ -22,13 +22,15 @@ load_dotenv("../venv")
 config = {"configurable": {"thread_id": "1"}}
 model = "gemini-2.5-flash"
 model_provider = "google_genai"
+api_call_buffer = 3 # need this when running backend agent
 TRANSCRIPT_FOLDER_PATH = "../data/raw"
 OUTPUT_FOLDER_PATH = "../data/processed"
 agent = EarningCallAgent(model=model,
                          model_provider=model_provider,
-                         system_prompt=prompts)
+                         system_prompt=prompts,
+                         api_call_buffer=api_call_buffer)
 
-stock = "MSFT"
+stock = "NVDA"
 context = {"ticker": stock.lower(),
            "year": 2025,
            "quarter": 4,

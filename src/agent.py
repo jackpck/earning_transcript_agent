@@ -2,6 +2,10 @@ from langchain.chat_models import init_chat_model
 from langgraph.graph import START, END, StateGraph
 from langchain_core.messages import SystemMessage, HumanMessage
 import os
+import time
+import ast
+import json
+import utils
 
 from state import AgentState
 
@@ -9,11 +13,13 @@ class EarningCallAgent:
     def __init__(self,
                  model: str,
                  model_provider: str,
-                 system_prompt):
+                 system_prompt,
+                 api_call_buffer: int):
 
         self.model = init_chat_model(model=model,
                                      model_provider=model_provider)
         self.system_prompt = system_prompt
+        self.api_call_buffer = api_call_buffer # set buffer second to stay within the free version RPM limit
         self._setup_graph()
 
     def check_processed_json(self, state: AgentState) -> int:
@@ -72,6 +78,7 @@ class EarningCallAgent:
         ]
         response = self.model.invoke(messages)
 
+        print(response.content)
         return {"transcript_json": response.content}
 
     def write_preprocessed_json(self, state: AgentState):
@@ -85,29 +92,33 @@ class EarningCallAgent:
             output_path = (f"{state.output_folder_path.rstrip('/')}"
             f"/{state.ticker}_Q{state.quarter}_{state.year}_preprocessed.json")
             with open(output_path, "w", encoding='utf-8') as f:
-                transcript_json_clean = state.transcript_json.strip() \
-                    .removeprefix("```json") \
-                    .removeprefix("```") \
-                    .removesuffix("```")
-                f.write(transcript_json_clean)
+                transcript_json_clean = utils.clean_json_str(state.transcript_json)
+                transcript_json_clean_json = json.loads(transcript_json_clean)
+                f.write(json.dumps(transcript_json_clean_json, indent=1))
         else:
             raise Exception("Output directory does not exist.")
 
     def analyze_llm(self, state: AgentState) -> str:
         """
-        Analyze the sentiment and possible risk factor in each speech. Instruction
+        Analyze the sentiment in each speech. Instruction
         given by system_analysis_prompt
         :param state: state of the agent
-        :return: string of json of the structured earning call transcript with sentiment and risk
+        :return: string of json of the structured earning call transcript with sentiment
         """
         print("ANALYZE_LLM")
-        messages = [
-            SystemMessage(content=self.system_prompt.SYSTEM_ANALYSIS_PROMPT),
-            HumanMessage(content=state.transcript_json)
-        ]
-        response = self.model.invoke(messages)
+        transcript_json_tmp = utils.clean_json_str(state.transcript_json)
+        transcript_json = json.loads(transcript_json_tmp)
+        for i, section in enumerate(transcript_json["sections"]):
+            messages = [
+                SystemMessage(content=self.system_prompt.SYSTEM_ANALYSIS_PROMPT),
+                HumanMessage(content=section["statement"])
+            ]
+            response_content = self.model.invoke(messages).content
+            response_content_clean = utils.clean_json_str(response_content)
+            transcript_json["sections"][i]["statement"] = json.loads(response_content_clean)
+            time.sleep(self.api_call_buffer) # ensure RPM < 10. Only for free tier gemini-2.5-flash
 
-        return {"transcript_json": response.content}
+        return {"transcript_json": json.dumps(transcript_json)}
 
     def _setup_graph(self):
         graph = StateGraph(AgentState)

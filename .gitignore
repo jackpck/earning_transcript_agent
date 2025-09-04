@@ -2,3 +2,6 @@ venv
 .idea
 .dockerignore
 config
+__pycache__
+*.pyc
+*.pyo
