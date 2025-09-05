@@ -1,4 +1,4 @@
-from agent import EarningCallAgent
+from agent import TranscriptPrepAgent
 import os
 from dotenv import load_dotenv
 
@@ -25,7 +25,7 @@ model_provider = "google_genai"
 api_call_buffer = 3 # need this when running backend agent
 TRANSCRIPT_FOLDER_PATH = "../data/raw"
 OUTPUT_FOLDER_PATH = "../data/processed"
-agent = EarningCallAgent(model=model,
+agent = TranscriptPrepAgent(model=model,
                          model_provider=model_provider,
                          system_prompt=prompts,
                          api_call_buffer=api_call_buffer)

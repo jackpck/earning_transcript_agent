@@ -52,9 +52,15 @@ Instructions:
 """
 
 SYSTEM_CHATBOT_PROMPT = """
+You are a financial advisor. Given the METADATA and RESPONSES below, and the tools you have access to, answer the 
+QUESTION from the user below: 
+
+METADATA:
 {0}
 
-Given the list of responses above, answer the following questions from the user:
-
+RESPONSE:
 {1}
+
+QUESTION:
+{2}
 """

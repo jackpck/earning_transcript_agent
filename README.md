@@ -31,10 +31,13 @@ effectively as answer is generated based on a list of condensed sentences instea
 - Once run, the preprocessed json will be saved under `/data/processed`. The app will only populate the
 filter for those in the folder
 
-![Alt text](./static/agent_graph.png)
+![Alt text](./static/backend_agent_graph.png)
 
-### Frontend agent [WIP]
-- Based on what the user ask, can call stock price API etc
+### Frontend agent 
+- An agentic chatbot answering user's question based on the processed earning call statements of the selected
+  stock. The agentic chatbot can call stock price API if necessary to answer user's query.
+
+![Alt text](./static/frontend_agent_graph.png)
 
 ## Run the analyzer app
 
