@@ -9,6 +9,7 @@ import plotly.express as px
 from langchain.chat_models import init_chat_model
 from langchain_core.messages import HumanMessage
 import pandas as pd
+import asyncio
 
 import sys
 sys.path.append("../")
@@ -140,10 +141,25 @@ try:
                                                         df_summary.values,
                                                         st.session_state.messages[-1]["content"])
                 message_input = {"messages": [HumanMessage(content=messages)]}
-                stream = chatbot.astream(message_input)
-                response = st.write_stream(stream)
 
-            st.session_state.messages.append({"role": "assistant", "content": response})
+                async def get_stream_response():
+                    """
+                    this function is used to extract content from the async_generator produced by
+                    chatbot.astream()
+                    """
+                    stream = chatbot.astream(message_input)
+                    async for chunk in stream:
+                        try:
+                            # require 1) it's an llm response and 2) it doesn't call tools anymore
+                            if chunk["llm"]:
+                                if "tool_calls" not in chunk["llm"]["messages"][0]:
+                                    yield chunk["llm"]["messages"][0].content.replace("$","\$")
+                        except:
+                            pass
+
+                response = st.write_stream(get_stream_response())
+
+            st.session_state.messages.append({"role": "assistant", "content": response.replace("$","\$")})
 
         if st.button("Reset chat"):
             st.session_state.clear()
