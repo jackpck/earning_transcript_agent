@@ -53,3 +53,4 @@ jobs:
           context: .
           push: true
           tags: jackypck/earning_call_agent:latest
+          platforms: linux/amd64,linux/arm64
