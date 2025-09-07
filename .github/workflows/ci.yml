@@ -27,6 +27,8 @@ jobs:
 
       - name: Run pytest
         run: python -m pytest -v tests/ --maxfail=1 --disable-warnings
+        env:
+          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
 
   # Build and push Docker image (only if tests pass)
   docker:
