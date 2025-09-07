@@ -24,6 +24,10 @@ coherent theme and sentiment, and summarizing a statement into one sentence that
 of the statement. All these preprocessing allow the frontend chatbot agent to answer questions much more 
 effectively as answer is generated based on a list of condensed sentences instead of the full transcript.
 
+Separating the backend preprocessing agent from the frontend chatbot improves response time and therefore
+user experience. The preprocessed transcripts are further persisted, removing the need to run the
+extraction everytime.
+
 ## Agent graph
 
 ### Backend agent
@@ -39,6 +43,10 @@ filter for those in the folder
 
 ![Alt text](./static/frontend_agent_graph.png)
 
+### Overall agent workflow
+
+![Alt text](./static/full_agent_graph.png)
+
 ## Run the analyzer app
 
 Streamlit is choice of app for user interaction with the analyzer. To run the app locally, run 
@@ -51,14 +59,11 @@ user might encounter long wait time if the preprocessed json is not already avai
 
 ## What do the analyzer app show?
 
-1. Show basic statistics of number of response of different sentiment and risk mentioned
-2. A chatbot that allows user ask any questions from the transcript. Instead of using RAG, the transcript
+A chatbot that allows user ask any questions from the transcript. Instead of using RAG, the transcript
 and the user query are both processed in-context. To mitigate context-stuffing (loss of accuracy due to
    long input), further filters are provided to further trim down the json for the chatbot to consider
    when answering user's questions.
    
-3. Summarizing the processed transcript in a table for user referencing specific content from the transcript
-
 ## Instructions
 - To load the virtual environment: `source venv/Scripts/activate`
 - To set env variable `GOOGLE_API_KEY`, go to `config` and run `source set_api_key.sh`  
@@ -73,5 +78,8 @@ and the user query are both processed in-context. To mitigate context-stuffing (
     - push the image: `docker push dockerhub_username/earning_call_agent:latest`
     - on another machine, pull the image: `docker pull dockerhub/earning_call_agent:latest`
     - run the container: use the *To run a docker container* command above
+- To run pytest:
+    - go to root directory, run `python -m pytest -v tests/`. Using `python -m`
+    avoids using `python` and `pytest` from different locations
 
 

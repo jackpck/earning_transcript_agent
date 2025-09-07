@@ -6,8 +6,7 @@ import os
 import time
 import ast
 import json
-import utils
-from state import AgentState, FrontEndState
+from src.state import AgentState, FrontEndState
 
 class ChatbotAgent:
     def __init__(self,

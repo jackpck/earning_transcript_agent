@@ -1,0 +1,66 @@
+import pytest
+import os
+from langchain_core.messages import HumanMessage
+
+from system_prompts import prompts
+from src import tools
+from src import frontend_agent
+from src import utils
+
+os.environ["GOOGLE_API_KEY"] = os.environ["GOOGLE_API_KEY"].rstrip()
+
+OUTPUT_FOLDER_PATH = "./data/processed"
+config = {"configurable": {"thread_id": "1"}}
+stock = 'nvda'
+quarter = 1
+year = 2025
+metadata_lite = {"stock": stock,
+                 "year": year,
+                 "quarter": quarter}
+
+transcript_json_str = utils.load_transcript_json(output_folder_path=OUTPUT_FOLDER_PATH,
+                                                 ticker=stock,
+                                                 quarter=quarter,
+                                                 year=year)
+
+@pytest.fixture
+def my_df_summary():
+    type_filter = ["financial_results", "Q&A"]
+    sentiment_filter = ["positive","mixed","negative"]
+    df_summary = utils.convert_json_to_df_filtered(transcript_json_str=transcript_json_str,
+                                                   type_filter=type_filter,
+                                                   sentiment_filter=sentiment_filter)
+    return df_summary
+
+@pytest.fixture
+def my_chatbot():
+    model = "gemini-2.5-flash"
+    model_provider = "google_genai"
+    tool_list = [tools.get_stock_price]
+    api_call_buffer = 0
+    chatbot = frontend_agent.ChatbotAgent(model=model,
+                           model_provider=model_provider,
+                           tool_list=tool_list,
+                           api_call_buffer=api_call_buffer).graph
+    return chatbot
+
+
+def test_no_tool_call(my_df_summary, my_chatbot):
+    """
+    Test if the given user prompt has no request for stock data,
+    the stock price tool should NOT be called
+    """
+    test_prompt = """
+    Summarize top 3 themes from the given list of responses
+    """
+    messages = prompts.SYSTEM_CHATBOT_PROMPT.format(metadata_lite,
+                                            my_df_summary.values,
+                                            test_prompt)
+    message_input = {"messages": [HumanMessage(content=messages)]}
+    responses = my_chatbot.invoke(message_input, config)
+
+    print(responses)
+    for response in responses:
+        assert "tool_calls" not in response
+
+
