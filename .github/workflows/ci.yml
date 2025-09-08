@@ -9,7 +9,7 @@ on:
 jobs:
   # Run tests with pytest
   test:
-    runs-on: linux-latest
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
@@ -33,7 +33,7 @@ jobs:
   # Build and push Docker image (only if tests pass)
   docker:
     needs: test   # only runs if 'test' job succeeds
-    runs-on: linux-latest
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
