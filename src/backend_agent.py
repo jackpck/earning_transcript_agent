@@ -9,7 +9,7 @@ import utils
 
 from state import AgentState
 
-class EarningCallAgent:
+class TranscriptPrepAgent:
     def __init__(self,
                  model: str,
                  model_provider: str,

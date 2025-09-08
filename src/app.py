@@ -1,4 +1,5 @@
-from agent import EarningCallAgent
+from frontend_agent import ChatbotAgent
+import tools
 import utils
 from dotenv import load_dotenv
 import os
@@ -6,7 +7,9 @@ from urllib.error import URLError
 import streamlit as st
 import plotly.express as px
 from langchain.chat_models import init_chat_model
+from langchain_core.messages import HumanMessage
 import pandas as pd
+import asyncio
 
 import sys
 sys.path.append("../")
@@ -27,7 +30,9 @@ os.environ["GOOGLE_API_KEY"] = os.environ["GOOGLE_API_KEY"].rstrip()
 config = {"configurable": {"thread_id": "1"}}
 model = "gemini-2.5-flash"
 model_provider = "google_genai"
-api_call_buffer = 3
+api_call_buffer = 0
+
+tool_list = [tools.get_stock_price]
 
 system_preprocess_prompt = prompts.SYSTEM_PREPROCESS_PROMPT
 system_analysis_prompt = prompts.SYSTEM_ANALYSIS_PROMPT
@@ -37,7 +42,7 @@ TRANSCRIPT_FOLDER_PATH = "../data/raw"
 OUTPUT_FOLDER_PATH = "../data/processed"
 
 # uncomment below if want to run backend agent at runtime
-#backend_agent = EarningCallAgent(model=model,
+#backend_agent = TranscriptPrepAgent(model=model,
 #                         model_provider=model_provider,
 #                         system_prompt=prompts,
 #                         api_call_buffer=api_call_buffer)
@@ -73,6 +78,10 @@ try:
         #           "output_folder_path": OUTPUT_FOLDER_PATH}
         # backend_agent.graph.invoke(context, config)
 
+        metadata_lite = {"stock": stock,
+                         "year": year,
+                         "quarter": quarter}
+
         ## 1. select transcripts and prepare df
         col_type_filter, col_sentiment_filter = st.columns(2)
         with col_type_filter:
@@ -102,8 +111,10 @@ try:
                                                        sentiment_filter=sentiment_filter)
 
         ## 2. chatbot
-        chatbot = init_chat_model(model=model,
-                                  model_provider=model_provider)
+        chatbot = ChatbotAgent(model=model,
+                               model_provider=model_provider,
+                               tool_list=tool_list,
+                               api_call_buffer=api_call_buffer).graph
 
         if "model" not in st.session_state:
             st.session_state["model"] = model
@@ -126,11 +137,29 @@ try:
                 st.markdown(prompt)
 
             with st.chat_message("assistant"):
-                messages = system_chatbot_prompt.format(df_summary.values,
+                messages = system_chatbot_prompt.format(metadata_lite,
+                                                        df_summary.values,
                                                         st.session_state.messages[-1]["content"])
-                stream = chatbot.astream(messages)
-                response = st.write_stream(stream)
-            st.session_state.messages.append({"role": "assistant", "content": response})
+                message_input = {"messages": [HumanMessage(content=messages)]}
+
+                async def get_stream_response():
+                    """
+                    this function is used to extract content from the async_generator produced by
+                    chatbot.astream()
+                    """
+                    stream = chatbot.astream(message_input)
+                    async for chunk in stream:
+                        try:
+                            # require 1) it's an llm response and 2) it doesn't call tools anymore
+                            if chunk["llm"]:
+                                if "tool_calls" not in chunk["llm"]["messages"][0]:
+                                    yield chunk["llm"]["messages"][0].content.replace("$","\$")
+                        except:
+                            pass
+
+                response = st.write_stream(get_stream_response())
+
+            st.session_state.messages.append({"role": "assistant", "content": response.replace("$","\$")})
 
         if st.button("Reset chat"):
             st.session_state.clear()
