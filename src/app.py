@@ -11,8 +11,6 @@ from langchain_core.messages import HumanMessage
 import pandas as pd
 import asyncio
 
-import sys
-sys.path.append("../")
 from system_prompts import prompts
 
 load_dotenv("../venv")
@@ -38,8 +36,8 @@ system_preprocess_prompt = prompts.SYSTEM_PREPROCESS_PROMPT
 system_analysis_prompt = prompts.SYSTEM_ANALYSIS_PROMPT
 system_chatbot_prompt = prompts.SYSTEM_CHATBOT_PROMPT
 
-TRANSCRIPT_FOLDER_PATH = "../data/raw"
-OUTPUT_FOLDER_PATH = "../data/processed"
+TRANSCRIPT_FOLDER_PATH = "./data/raw"
+OUTPUT_FOLDER_PATH = "./data/processed"
 
 # uncomment below if want to run backend agent at runtime
 #backend_agent = TranscriptPrepAgent(model=model,

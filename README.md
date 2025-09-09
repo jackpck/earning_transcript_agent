@@ -73,7 +73,7 @@ Some questions the user might consider asking:
 ## Instructions
 - To load the virtual environment: `source venv/Scripts/activate`
 - To set env variable `GOOGLE_API_KEY`, go to `config` and run `source set_api_key.sh`  
-- To run the app locally, go to `/src` and run `streamlit run app.py`
+- To run the app locally, go to root directory and run `python -m streamlit run src/app.py`
 - To create a docker image: `docker build -t earning_call_agent .`
 - To run a docker container: `docker run -p 8501:8501 -e GOOGLE_API_KEY=$GOOGLE_API_KEY 
   earning_call_agent`. Since no API KEY info is included in the docker image, the

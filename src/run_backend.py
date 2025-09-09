@@ -2,8 +2,6 @@ from agent import TranscriptPrepAgent
 import os
 from dotenv import load_dotenv
 
-import sys
-sys.path.append("../")
 from system_prompts import prompts
 
 
@@ -23,8 +21,8 @@ config = {"configurable": {"thread_id": "1"}}
 model = "gemini-2.5-flash"
 model_provider = "google_genai"
 api_call_buffer = 3 # need this when running backend agent
-TRANSCRIPT_FOLDER_PATH = "../data/raw"
-OUTPUT_FOLDER_PATH = "../data/processed"
+TRANSCRIPT_FOLDER_PATH = "./data/raw"
+OUTPUT_FOLDER_PATH = "./data/processed"
 agent = TranscriptPrepAgent(model=model,
                          model_provider=model_provider,
                          system_prompt=prompts,
