@@ -71,6 +71,7 @@ def convert_json_to_df_filtered(transcript_json_str: str,
         else:
             df_summary = pd.concat([df_summary, pd.DataFrame([s])])
 
+    print(f"df_summary\n{df_summary}")
     df_summary = df_summary[df_summary["sentiment"].isin(sentiment_filter)]["sentiment summary"]
     return df_summary
 

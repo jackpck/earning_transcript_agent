@@ -1,6 +1,7 @@
 from langchain_core.tools import tool
 import yfinance as yf
 import pandas as pd
+from datetime import date
 
 @tool
 def get_stock_price(symbol: str,
@@ -19,6 +20,15 @@ def get_stock_price(symbol: str,
                        start=startdate, end=enddate)
 
     return df[["Close","Volume"]]
+
+@tool
+def get_today_date() -> str:
+    """
+    Get today's date
+    :return: today's date
+    """
+    return str(date.today())
+
 
 if __name__ == "__main__":
     symbol = 'nvda'

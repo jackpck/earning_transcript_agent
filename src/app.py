@@ -7,7 +7,7 @@ from urllib.error import URLError
 import streamlit as st
 import plotly.express as px
 from langchain.chat_models import init_chat_model
-from langchain_core.messages import HumanMessage
+from langchain_core.messages import SystemMessage, HumanMessage
 import pandas as pd
 import asyncio
 
@@ -30,11 +30,12 @@ model = "gemini-2.5-flash"
 model_provider = "google_genai"
 api_call_buffer = 0
 
-tool_list = [tools.get_stock_price]
+tool_list = [tools.get_stock_price, tools.get_today_date]
 
-system_preprocess_prompt = prompts.SYSTEM_PREPROCESS_PROMPT
-system_analysis_prompt = prompts.SYSTEM_ANALYSIS_PROMPT
-system_chatbot_prompt = prompts.SYSTEM_CHATBOT_PROMPT
+preprocess_system_prompt = prompts.PREPROCESS_SYSTEM_PROMPT
+analysis_system_prompt = prompts.ANALYSIS_SYSTEM_PROMPT
+chatbot_system_prompt = prompts.CHATBOT_SYSTEM_PROMPT
+chatbot_user_prompt = prompts.CHATBOT_USER_PROMPT
 
 TRANSCRIPT_FOLDER_PATH = "./data/raw"
 OUTPUT_FOLDER_PATH = "./data/processed"
@@ -112,7 +113,8 @@ try:
         chatbot = ChatbotAgent(model=model,
                                model_provider=model_provider,
                                tool_list=tool_list,
-                               api_call_buffer=api_call_buffer).graph
+                               api_call_buffer=api_call_buffer,
+                               system_message=chatbot_system_prompt).graph
 
         if "model" not in st.session_state:
             st.session_state["model"] = model
@@ -135,17 +137,17 @@ try:
                 st.markdown(prompt)
 
             with st.chat_message("assistant"):
-                messages = system_chatbot_prompt.format(metadata_lite,
-                                                        df_summary.values,
-                                                        st.session_state.messages[-1]["content"])
-                message_input = {"messages": [HumanMessage(content=messages)]}
+                user_messages = chatbot_user_prompt.format(metadata_lite,
+                                                           df_summary.values,
+                                                           st.session_state.messages[-1]["content"])
+                message_input = [HumanMessage(content=user_messages)]
 
                 async def get_stream_response():
                     """
                     this function is used to extract content from the async_generator produced by
                     chatbot.astream()
                     """
-                    stream = chatbot.astream(message_input)
+                    stream = chatbot.astream({"messages": message_input})
                     async for chunk in stream:
                         try:
                             # require 1) it's an llm response and 2) it doesn't call tools anymore

@@ -73,7 +73,7 @@ class TranscriptPrepAgent:
         """
         print("PREPROCESS_LLM")
         messages = [
-            SystemMessage(content=self.system_prompt.SYSTEM_PREPROCESS_PROMPT),
+            SystemMessage(content=self.system_prompt.PREPROCESS_SYSTEM_PROMPT),
             HumanMessage(content=state.transcript)
         ]
         response = self.model.invoke(messages)
@@ -110,7 +110,7 @@ class TranscriptPrepAgent:
         transcript_json = json.loads(transcript_json_tmp)
         for i, section in enumerate(transcript_json["sections"]):
             messages = [
-                SystemMessage(content=self.system_prompt.SYSTEM_ANALYSIS_PROMPT),
+                SystemMessage(content=self.system_prompt.ANALYSIS_SYSTEM_PROMPT),
                 HumanMessage(content=section["statement"])
             ]
             response_content = self.model.invoke(messages).content

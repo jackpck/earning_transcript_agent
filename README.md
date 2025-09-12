@@ -68,7 +68,14 @@ Some questions the user might consider asking:
 - summarize the main themes mentioned in the responses. Return
   1. number of themes
   2. name and short description of each theme
-  3. describe how each theme might have affected the stock performance of the following quarter
+  3. compare with the stock performance over the same period
+  
+Note that the LLM (gemini-2.5-flash) has a tendency to avoid responses that involve forecasting stock 
+return. Therefore, if one wants the agent to call the stock price API tool, try using backward-looking 
+words such as '*compare with*' instead of words with forward-looking connotation such as '*correlate with*'. 
+The chatbot system prompt is already designed to mitigate LLM failing to call the price tool. Test case
+`test_tool_call` is built to test this.
+
    
 ## Instructions
 - To load the virtual environment: `source venv/Scripts/activate`

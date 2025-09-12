@@ -1,6 +1,6 @@
 import pytest
 import os
-from langchain_core.messages import HumanMessage
+from langchain_core.messages import HumanMessage, AIMessage
 from system_prompts import prompts
 from src import tools
 from src import frontend_agent
@@ -35,12 +35,14 @@ def my_df_summary():
 def my_chatbot():
     model = "gemini-2.5-flash"
     model_provider = "google_genai"
-    tool_list = [tools.get_stock_price]
+    tool_list = [tools.get_stock_price, tools.get_today_date]
     api_call_buffer = 0
+    system_message = prompts.CHATBOT_SYSTEM_PROMPT
     chatbot = frontend_agent.ChatbotAgent(model=model,
-                           model_provider=model_provider,
-                           tool_list=tool_list,
-                           api_call_buffer=api_call_buffer).graph
+                                          model_provider=model_provider,
+                                          tool_list=tool_list,
+                                          api_call_buffer=api_call_buffer,
+                                          system_message=system_message).graph
     return chatbot
 
 
@@ -52,14 +54,44 @@ def test_no_tool_call(my_df_summary, my_chatbot):
     test_prompt = """
     Summarize top 3 themes from the given list of responses
     """
-    messages = prompts.SYSTEM_CHATBOT_PROMPT.format(metadata_lite,
-                                            my_df_summary.values,
-                                            test_prompt)
-    message_input = {"messages": [HumanMessage(content=messages)]}
+    human_message = prompts.CHATBOT_USER_PROMPT.format(metadata_lite,
+                                                       my_df_summary.values,
+                                                       test_prompt)
+    message_input = {"messages": [HumanMessage(content=human_message)]}
     responses = my_chatbot.invoke(message_input, config)
 
-    print(responses)
+    # if tool_call ever exists in one of the AIMessage, test case fails
+    tool_call_checksum = 0
+    for response in responses:
+        if isinstance(response, AIMessage):
+            tool_call_checksum += int(bool(getattr(response, "tool_calls", None)))
+    assert tool_call_checksum == 0
+
     for response in responses:
         assert "tool_calls" not in response
 
+def test_tool_call(my_chatbot):
+    """
+    Test if the given user prompt has a request for stock data,
+    the stock price tool should be called
+    """
+    test_prompt = """
+    QUESTION:
+    What is the performance of Nvidia in 2025 Q1?
+    """
+    response_prompt = """
+    No response given.
+    """
+    human_message = prompts.CHATBOT_USER_PROMPT.format(metadata_lite,
+                                                       response_prompt,
+                                                       test_prompt)
+    message_input = {"messages": [HumanMessage(content=human_message)]}
+    responses = my_chatbot.invoke(message_input, config)["messages"]
+
+    # if tool_call does not exist in any of the AIMessage, test case fails
+    tool_call_checksum = 0
+    for response in responses:
+        if isinstance(response, AIMessage):
+            tool_call_checksum += int(bool(getattr(response, "tool_calls", None)))
+    assert tool_call_checksum != 0
 

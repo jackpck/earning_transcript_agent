@@ -13,13 +13,14 @@ class ChatbotAgent:
                  model: str,
                  model_provider: str,
                  tool_list: List,
-                 api_call_buffer: int):
+                 api_call_buffer: int,
+                 system_message: str):
 
         self.model = init_chat_model(model=model,
                                      model_provider=model_provider).bind_tools(tool_list)
         self.tools = {t.name: t for t in tool_list}
         self.api_call_buffer = api_call_buffer # set buffer second to stay within the free version RPM limit
-        self._setup_graph(system_message="")
+        self._setup_graph(system_message=system_message)
 
     def _setup_graph(self, system_message):
         graph = StateGraph(FrontEndState)
@@ -38,10 +39,10 @@ class ChatbotAgent:
     def call_llm(self, state: FrontEndState):
         messages = state["messages"]
         print("call_llm")
-        print(f"{messages}")
-        print("*******************")
         if self.system_message:
             messages = [SystemMessage(content=self.system_message)] + messages
+        print(f"{messages}")
+        print("*******************")
         message = self.model.invoke(messages)
         return {"messages": [message]}
 
