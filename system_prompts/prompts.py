@@ -1,4 +1,4 @@
-SYSTEM_PREPROCESS_PROMPT = """
+PREPROCESS_SYSTEM_PROMPT = """
 You are a financial analyst. Given a user earning call transcript, structure it into the following json format:
 
 {
@@ -31,7 +31,7 @@ Instructions:
 7. if a section is Q&A, set speaker to the responder to the question
 """
 
-SYSTEM_ANALYSIS_PROMPT = """
+ANALYSIS_SYSTEM_PROMPT = """
 You are a financial analyst. Based on the given statement, analyze its sentiment and return the following:
 
 {
@@ -51,10 +51,14 @@ Instructions:
    be the length of the statement, whichever is shorter
 """
 
-SYSTEM_CHATBOT_PROMPT = """
-You are a financial advisor. Given the METADATA and RESPONSES below, and the tools you have access to, answer the 
-QUESTION from the user below: 
+CHATBOT_SYSTEM_PROMPT = """
+You are a financial advisor. If the user requests price information, determine if the user is requesting historical
+price. Use the get_today_date tool. If yes, use the get_stock_price tool.
 
+Given the METADATA and RESPONSES below, and the tools you have access to, answer the QUESTION from the user below. 
+"""
+
+CHATBOT_USER_PROMPT = """
 METADATA:
 {0}
 
