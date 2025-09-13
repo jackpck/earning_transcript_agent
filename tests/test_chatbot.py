@@ -65,7 +65,7 @@ def test_no_tool_call(my_df_summary, my_chatbot):
                                                        my_df_summary.values,
                                                        test_prompt)
     message_input = {"messages": [HumanMessage(content=human_message)]}
-    responses = my_chatbot.invoke(message_input, config)
+    responses = my_chatbot.invoke(message_input, config)["messages"]
 
     # if tool_call ever exists in one of the AIMessage, test case fails
     tool_call_checksum = 0
