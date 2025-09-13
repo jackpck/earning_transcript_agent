@@ -1,12 +1,20 @@
 import pytest
 import os
 from langchain_core.messages import HumanMessage, AIMessage
+from langsmith import traceable
+
 from system_prompts import prompts
 from src import tools
 from src import frontend_agent
 from src import utils
 
 os.environ["GOOGLE_API_KEY"] = os.environ["GOOGLE_API_KEY"].rstrip()
+os.environ["LANGSMITH_API_KEY"] = os.environ["LANGSMITH_API_KEY"].rstrip()
+os.environ["LANGSMITH_WORKSPACE_ID"] = os.environ["LANGSMITH_WORKSPACE_ID"].rstrip()
+os.environ["LANGSMITH_ENDPOINT"] = os.environ["LANGSMITH_ENDPOINT"].rstrip()
+os.environ["LANGSMITH_PROJECT"] = os.environ["LANGSMITH_PROJECT"].rstrip()
+os.environ["LANGSMITH_TRACING"] = os.environ["LANGSMITH_TRACING"].rstrip()
+os.environ["LANGCHAIN_CALLBACKS_BACKGROUND"] = os.environ["LANGCHAIN_CALLBACKS_BACKGROUND"].rstrip()
 
 OUTPUT_FOLDER_PATH = "./data/processed"
 config = {"configurable": {"thread_id": "1"}}
@@ -44,7 +52,6 @@ def my_chatbot():
                                           api_call_buffer=api_call_buffer,
                                           system_message=system_message).graph
     return chatbot
-
 
 def test_no_tool_call(my_df_summary, my_chatbot):
     """

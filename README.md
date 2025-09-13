@@ -100,5 +100,7 @@ The chatbot system prompt is already designed to mitigate LLM failing to call th
     - pytest
     - build and push docker image
   - user credentials and API keys are saved under *Actions secrets and variables* on Github
-
+- To build a container from the Docker image on Docker Desktop:
+  - set host port to `8501`
+  - in environment variable, set the value for `GOOGLE_API_KEY`
 
