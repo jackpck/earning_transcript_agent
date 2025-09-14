@@ -29,6 +29,12 @@ jobs:
         run: python -m pytest -v tests/ --maxfail=1 --disable-warnings
         env:
           GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+          LANGSMITH_API_KEY: ${{ secrets.LANGSMITH_API_KEY }}
+          LANGSMITH_WORKSPACE_ID: ${{ secrets.LANGSMITH_WORKSPACE_ID }}
+          LANGSMITH_ENDPOINT: ${{ vars.LANGSMITH_ENDPOINT }}
+          LANGSMITH_PROJECT: ${{ vars.LANGSMITH_PROJECT }}
+          LANGSMITH_TRACING: ${{ vars.LANGSMITH_TRACING }}
+          LANGCHAIN_CALLBACKS_BACKGROUND: ${{ vars.LANGCHAIN_CALLBACKS_BACKGROUND }}
 
   # Build and push Docker image (only if tests pass)
   docker:
