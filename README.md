@@ -103,4 +103,14 @@ The chatbot system prompt is already designed to mitigate LLM failing to call th
 - To build a container from the Docker image on Docker Desktop:
   - set host port to `8501`
   - in environment variable, set the value for `GOOGLE_API_KEY`
+- To run eval:
+  - **Langsmith** is used to trace and evaluate the agent. Since langchain/langgraph is the main tech stack,
+  one only need to load the langsmith environment variables before running `evaluations/eval.py`. As long as
+  the function `evaluate()` is called, tracing is triggered and results can be assessed from the langsmith
+  web UI  
 
+## Looking ahead for speedbumps
+- Langchain has relatively high latency due to abstraction. Therefore it is more suitable for prototyping
+rather than production
+- while using LLM API directly reduces latency compared with langchain `init_chat_model()`, tracer wrappers
+will be needed for tracing using Langsmith, and hence more refactoring to be done
