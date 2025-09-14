@@ -1,5 +1,13 @@
-# Agentic AI: Earnings call transcript chatbot
+# Agentic earnings call chatbot MVP2
 
+## Introduction
+
+To refine the chatbot response through prompt experimentation and context engineering. Langsmith evaluation
+will be leveraged.
+
+---
+
+# \*\*MVP 1 README below\*\*
 ## Introduction
 
 The goal of the agentic chatbot is to provide asset management analyst a way to summarize topics mentioned
