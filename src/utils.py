@@ -71,12 +71,33 @@ def convert_json_to_df_filtered(transcript_json_str: str,
         else:
             df_summary = pd.concat([df_summary, pd.DataFrame([s])])
 
-    print(f"df_summary\n{df_summary}")
     df_summary = df_summary[df_summary["sentiment"].isin(sentiment_filter)]["sentiment summary"]
     return df_summary
 
+def reprompt_eval_test(examples, chatbot_user_prompt, metadata_input, summary_input):
+    for example in examples["examples"]:
+        example["inputs"]["text"] = chatbot_user_prompt.format(metadata_input,
+                                                               summary_input,
+                                                               example["inputs"]["text"])
+
+    return examples
+
+
 
 if __name__ == "__main__":
-    output_folder_path = "../data/processed"
+    import sys
+    from system_prompts import prompts
 
-    stock, quarter, year = get_filter_from_filename(output_folder_path)
+    EVAL_EXAMPLE_PATH = "./data/evaluation/1_call_price_example.json"
+    with open(EVAL_EXAMPLE_PATH, "r", encoding="utf-8") as f:
+        data = f.read()
+
+    examples = json.loads(data)
+
+    metadata_input = "metadata placeholder"
+    summary_input = "summary placeholder"
+    reprompt = reprompt_eval_test(examples,
+                                  prompts.CHATBOT_USER_PROMPT,
+                                  metadata_input,
+                                  summary_input)
+    print(reprompt)

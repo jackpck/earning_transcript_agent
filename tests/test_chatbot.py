@@ -1,12 +1,20 @@
 import pytest
 import os
 from langchain_core.messages import HumanMessage, AIMessage
+from langsmith import traceable
+
 from system_prompts import prompts
 from src import tools
 from src import frontend_agent
 from src import utils
 
 os.environ["GOOGLE_API_KEY"] = os.environ["GOOGLE_API_KEY"].rstrip()
+os.environ["LANGSMITH_API_KEY"] = os.environ["LANGSMITH_API_KEY"].rstrip()
+os.environ["LANGSMITH_WORKSPACE_ID"] = os.environ["LANGSMITH_WORKSPACE_ID"].rstrip()
+os.environ["LANGSMITH_ENDPOINT"] = os.environ["LANGSMITH_ENDPOINT"].rstrip()
+os.environ["LANGSMITH_PROJECT"] = os.environ["LANGSMITH_PROJECT"].rstrip()
+os.environ["LANGSMITH_TRACING"] = os.environ["LANGSMITH_TRACING"].rstrip()
+os.environ["LANGCHAIN_CALLBACKS_BACKGROUND"] = os.environ["LANGCHAIN_CALLBACKS_BACKGROUND"].rstrip()
 
 OUTPUT_FOLDER_PATH = "./data/processed"
 config = {"configurable": {"thread_id": "1"}}
@@ -45,7 +53,6 @@ def my_chatbot():
                                           system_message=system_message).graph
     return chatbot
 
-
 def test_no_tool_call(my_df_summary, my_chatbot):
     """
     Test if the given user prompt has no request for stock data,
@@ -58,7 +65,7 @@ def test_no_tool_call(my_df_summary, my_chatbot):
                                                        my_df_summary.values,
                                                        test_prompt)
     message_input = {"messages": [HumanMessage(content=human_message)]}
-    responses = my_chatbot.invoke(message_input, config)
+    responses = my_chatbot.invoke(message_input, config)["messages"]
 
     # if tool_call ever exists in one of the AIMessage, test case fails
     tool_call_checksum = 0

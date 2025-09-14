@@ -2,7 +2,7 @@ venv
 .idea
 .dockerignore
 .pytest_cache
-config
+config/*api*
 __pycache__
 *.pyc
 *.pyo

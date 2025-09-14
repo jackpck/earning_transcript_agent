@@ -1,0 +1,16 @@
+{
+  "examples": [
+    {
+      "inputs": {"text": "Summarize the responses in less than 4 themes. Compare with stock performance over the same period?"},
+      "outputs": {"label":  "Yes"}
+    },
+    {
+      "inputs": {"text": "Based on the responses, should one expect a positive stock performance the quarter after? Compare with the actual stock performance the quarter after?"},
+      "outputs": {"label":  "Yes"}
+    },
+    {
+      "inputs": {"text": "Should I buy the stock now based on the responses?"},
+      "outputs": {"label":  "No"}
+    }
+  ]
+}

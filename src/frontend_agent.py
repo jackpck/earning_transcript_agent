@@ -38,19 +38,13 @@ class ChatbotAgent:
 
     def call_llm(self, state: FrontEndState):
         messages = state["messages"]
-        print("call_llm")
         if self.system_message:
             messages = [SystemMessage(content=self.system_message)] + messages
-        print(f"{messages}")
-        print("*******************")
         message = self.model.invoke(messages)
         return {"messages": [message]}
 
     def call_tools(self, state: FrontEndState):
         tool_calls = state["messages"][-1].tool_calls
-        print("call_tools")
-        print(f"{tool_calls}")
-        print("*******************")
         results = []
         for t in tool_calls:
             result = self.tools[t["name"]].invoke(t["args"])
@@ -61,9 +55,6 @@ class ChatbotAgent:
 
     def should_call_tools(self, state: FrontEndState):
         result = state["messages"][-1]
-        print("should_call_tools")
-        print(f"{result}")
-        print("*******************")
         return "tools" if len(result.tool_calls) > 0 else END
 
 
