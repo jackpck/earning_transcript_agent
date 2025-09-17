@@ -2,8 +2,10 @@ from langsmith import Client
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain.chat_models import init_chat_model
 from langsmith.utils import LangSmithError
+from langchain_core.prompts.chat import ChatPromptTemplate
 import os
 import json
+import copy
 
 from system_prompts import prompts
 from src import tools, utils
@@ -27,7 +29,6 @@ api_call_buffer = 0
 CONFIG = {"configurable": {"thread_id": "1"}}
 TRANSCRIPT_FOLDER_PATH = "./data/raw"
 
-
 def run_backend(stock, year, quarter, agent):
     context = {"ticker": stock.lower(),
                "year": year,
@@ -40,6 +41,7 @@ def run_backend(stock, year, quarter, agent):
 def run_frontend(backend_final_state,
                  type_filter,
                  sentiment_filter,
+                 chatbot_user_prompt,
                  user_prompt,
                  agent):
 
@@ -50,29 +52,30 @@ def run_frontend(backend_final_state,
     metadata_lite = {"stock": backend_final_state["ticker"],
                      "year": backend_final_state["year"],
                      "quarter": backend_final_state["quarter"]}
-    human_message = prompts.CHATBOT_USER_PROMPT.format(metadata_lite,
-                                                       df_summary.values,
-                                                       user_prompt)
+    human_message = chatbot_user_prompt.format(metadata_lite,
+                                               df_summary.values,
+                                               user_prompt)
     message_input = {"messages": [HumanMessage(content=human_message)]}
     response = agent.graph.invoke(message_input, CONFIG)["messages"][-1].content
 
     return response
 
-def call_eval_with_instruction(eval_prompt_identifier: str, **kwargs):
+def call_eval_with_instruction(chat_prompt: ChatPromptTemplate, **kwargs):
     def call_eval(inputs: dict) -> dict:
         """
         :param inputs: has the format of {'text':'...'}
         :return:
         """
-        responses = run_frontend(backend_final_state=kwargs["backend_final_state"],
-                                type_filter=kwargs["type_filter"],
-                                sentiment_filter=kwargs["sentiment_filter"],
-                                user_prompt=inputs["text"],
-                                agent=kwargs["chatbot"])
+        chatbot_responses = run_frontend(backend_final_state=kwargs["backend_final_state"],
+                                         type_filter=kwargs["type_filter"],
+                                         sentiment_filter=kwargs["sentiment_filter"],
+                                         chatbot_user_prompt=kwargs["chatbot_user_prompt"],
+                                         user_prompt=inputs["text"],
+                                         agent=kwargs["chatbot"])
 
-        instructions = client.pull_prompt(eval_prompt_identifier)
-        instructions.extend([HumanMessage(content="{responses}")])
-        validator_input = instructions.format_messages(responses=responses)
+        chat_prompt_copy = copy.deepcopy(chat_prompt)
+        chat_prompt_copy.extend([HumanMessage(content=chatbot_responses)])
+        validator_input = chat_prompt_copy.format_messages()
         validator = init_chat_model(model=validator_model,
                                      model_provider=validator_model_provider)
         validator_responses = validator.invoke(validator_input)
@@ -86,6 +89,7 @@ def accuracy_metric(inputs:dict, outputs: dict, reference_outputs: dict) -> bool
 
 
 if __name__ == "__main__":
+    # Set variables
     EVAL_DATA_PATH = "./data/evaluation/1_call_price_example.json"
     OUTPUT_FOLDER_PATH = "./data/processed"
     stock = 'nvda'
@@ -116,21 +120,21 @@ if __name__ == "__main__":
     )
 
     # Load prompts
-    prompt_commit_tag = "7e3878c6"
-    eval_prompt_identifier = f"eval-instructions:{prompt_commit_tag}"
+    prompt_list = client.list_prompts()
+    prompt_dict = {}
+    for p in prompt_list.repos:
+        prompt_name = f"{p.repo_handle}:{p.last_commit_hash[:8]}"
+        try:
+            prompt_dict[p.description] = client.pull_prompt(prompt_name)
+        except:
+            break
 
     # Load agents
-    backendagent = BackEndAgent(model=model,
-                                model_provider=model_provider,
-                                system_prompt=prompts,
-                                transcript_folder_path=TRANSCRIPT_FOLDER_PATH,
-                                api_call_buffer=api_call_buffer)
-
     chatbot = ChatbotAgent(model=model,
                            model_provider=model_provider,
                            tool_list=tool_list,
                            api_call_buffer=api_call_buffer,
-                           system_message=prompts.CHATBOT_SYSTEM_PROMPT)
+                           system_message=prompt_dict["CHATBOT_SYSTEM_PROMPT"])
 
     state_snapshot_path = f"./data/state_snapshot/{stock}_{year}_Q{quarter}_backend_final_state.json"
     if os.path.exists(state_snapshot_path):
@@ -138,6 +142,11 @@ if __name__ == "__main__":
         with open(state_snapshot_path, "r", encoding="utf-8") as f:
             backend_final_state = json.loads(f.read())
     else:
+        backendagent = BackEndAgent(model=model,
+                                    model_provider=model_provider,
+                                    system_prompt=prompt_dict,
+                                    transcript_folder_path=TRANSCRIPT_FOLDER_PATH,
+                                    api_call_buffer=api_call_buffer)
         print(f"{state_snapshot_path} does not exist. Run backend agent")
         backend_final_state = run_backend(stock=stock,
                                           year=year,
@@ -150,12 +159,18 @@ if __name__ == "__main__":
         "type_filter": type_filter,
         "sentiment_filter": sentiment_filter,
         "chatbot": chatbot,
-        "backend_final_state": backend_final_state
+        "backend_final_state": backend_final_state,
+        "chatbot_user_prompt":prompt_dict["CHATBOT_USER_PROMPT"].from_messages()[0].context
     }
 
     # Run evaluation
     results = client.evaluate(
-        call_eval_with_instruction(eval_prompt_identifier=eval_prompt_identifier, **agent_config),
+        call_eval_with_instruction(chat_prompt=prompt_dict["EVAL_INSTRUCTION_PROMPT"], **agent_config),
         data=dataset.name,
         evaluators=[accuracy_metric],
+        metadata={
+            "prompt_identifier":prompt_identifier,
+            "prompt_commit_tag":prompt_commit_tag
+        }
     )
+

@@ -1,11 +1,11 @@
 import os
 from dotenv import load_dotenv
 from langchain_core.messages import HumanMessage
+from langsmith import Client
 
 from src.backend_agent import BackEndAgent
 from src.frontend_agent import ChatbotAgent
 from src import utils
-from system_prompts import prompts
 from src import tools
 
 os.environ["GOOGLE_API_KEY"] = os.environ["GOOGLE_API_KEY"].rstrip()
@@ -24,7 +24,8 @@ def run_backend(stock, year, quarter, agent):
 def run_frontend(backend_final_state,
                  type_filter,
                  sentiment_filter,
-                 user_prompt,
+                 chatbot_user_prompt: str,
+                 user_prompt: str,
                  agent):
 
     transcript_json = backend_final_state["transcript_json"]
@@ -34,9 +35,9 @@ def run_frontend(backend_final_state,
     metadata_lite = {"stock": backend_final_state["ticker"],
                      "year": backend_final_state["year"],
                      "quarter": backend_final_state["quarter"]}
-    human_message = prompts.CHATBOT_USER_PROMPT.format(metadata_lite,
-                                                       df_summary.values,
-                                                       user_prompt)
+    human_message = chatbot_user_prompt.format(metadata_lite,
+                                               df_summary.values,
+                                               user_prompt)
     message_input = {"messages": [HumanMessage(content=human_message)]}
     response = agent.graph.invoke(message_input, config)["messages"][-1].content
 
@@ -57,6 +58,18 @@ if __name__ == "__main__":
     quarter = 2
     tool_list = [tools.get_stock_price, tools.get_today_date]
 
+    # Load prompts
+    print(f"Load prompts from langsmith")
+    client = Client()
+    prompt_list = client.list_prompts()
+    prompt_dict = {}
+    for p in prompt_list.repos:
+        prompt_name = f"{p.repo_handle}:{p.last_commit_hash[:8]}"
+        try:
+            prompt_dict[p.description] = client.pull_prompt(prompt_name)
+        except:
+            break
+
     user_prompt = """
     summarize the responses in less than 4 themes. Return:
     1) name of each theme
@@ -66,7 +79,7 @@ if __name__ == "__main__":
 
     backendagent = BackEndAgent(model=model,
                                 model_provider=model_provider,
-                                system_prompt=prompts,
+                                system_prompt=prompt_dict,
                                 transcript_folder_path=TRANSCRIPT_FOLDER_PATH,
                                 api_call_buffer=api_call_buffer)
 
@@ -74,16 +87,19 @@ if __name__ == "__main__":
                            model_provider=model_provider,
                            tool_list=tool_list,
                            api_call_buffer=api_call_buffer,
-                           system_message=prompts.CHATBOT_SYSTEM_PROMPT)
+                           system_message=prompt_dict["CHATBOT_SYSTEM_PROMPT"])
 
+    print(f"Run backend agent")
     backend_final_state = run_backend(stock=stock,
                                       year=year,
                                       quarter=quarter,
                                       agent=backendagent)
 
+    print(f"Run frontend agent")
     response = run_frontend(backend_final_state=backend_final_state,
                             type_filter=type_filter,
                             sentiment_filter=sentiment_filter,
+                            chatbot_user_prompt=prompt_dict["CHATBOT_USER_PROMPT"].format_messages()[0].content,
                             user_prompt=user_prompt,
                             agent=chatbot)
 

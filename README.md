@@ -1,4 +1,19 @@
-# Agentic AI: Earnings call transcript chatbot
+# Agentic earnings call chatbot MVP2
+
+## Introduction
+
+To refine the chatbot response through prompt experimentation and context engineering. Langsmith evaluation
+will be leveraged.
+
+## Instructions
+
+In `system_prompts/`, using `prompt_manager.py`, prompts in `prompts.py` and their metadata in 
+`prompt_metadata.json` will be pushed to and version controlled on the langsmith client endpoint. 
+To use a prompt, one will have to specify the version/commit tag and pull from client.
+
+---
+
+# \*\*MVP 1 README below\*\*
 
 ## Introduction
 
@@ -89,7 +104,7 @@ The chatbot system prompt is already designed to mitigate LLM failing to call th
     - tag the image: `docker tag earning_call_agent dockerhub_username/earning_call_agent:latest`
     - log in to docker hub: `docker login`
     - push the image: `docker push dockerhub_username/earning_call_agent:latest`
-    - on another machine, pull the image: `docker pull dockerhub/earning_call_agent:latest`
+    - on another machine, pull the image: `docker pull dockerhub_username/earning_call_agent:latest`
     - run the container: use the *To run a docker container* command above
 - To run pytest:
     - go to root directory, run `python -m pytest -v tests/`. Using `python -m`
@@ -108,6 +123,27 @@ The chatbot system prompt is already designed to mitigate LLM failing to call th
   one only need to load the langsmith environment variables before running `evaluations/eval.py`. As long as
   the function `evaluate()` is called, tracing is triggered and results can be assessed from the langsmith
   web UI  
+    
+## Instructions for deployment on AWS
+### I. Set up connection to EC2 instance
+1. Create key pair when launching a new EC2 instance. Save the `.pem` file in `~/.ssh`
+2. Change file permission: `chmod 400 ~/.ssh/my-key.pem`
+3. Login to AWS EC2 from terminal: `ssh -i ~/.ssh/my-key.pem ubuntu@<Public IPv4 address>`.
+   The Public IPv4 address can be found in the Details tab of the instance.
+
+### II. Set up repo and pull docker image
+1. Once logged in, git clone the repo
+2. To install docker:
+  - `sudo apt update`
+  - `sudo apt install docker.io -y`
+  - `sudo service docker start`
+3. Check if docker is installed properly: `docker info`
+4. Login to docker: `docker login`. This will prompt a confirmation code. Enter
+   the code to the link `https://loging.docker.com/activate` to activate
+10. To grant EC2 permission to talk to the docker daemon, add user to the docker group by:
+  - `sudo usermod -aG docker $USER`
+  - and run `newgrp docker` right after.
+11. You should be able to pull from docker:`docker pull <dockerhub-username>/earning_call_agent:latest`
 
 ## Looking ahead for speedbumps
 - Langchain has relatively high latency due to abstraction. Therefore it is more suitable for prototyping

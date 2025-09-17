@@ -1,9 +1,11 @@
 from langchain.chat_models import init_chat_model
 from langgraph.graph import START, END, StateGraph
 from langchain_core.messages import SystemMessage, HumanMessage
+from langchain_core.prompts.chat import ChatPromptTemplate
 import os
 import time
 import json
+
 from src import utils
 from src.state import BackEndState
 
@@ -11,13 +13,15 @@ class BackEndAgent:
     def __init__(self,
                  model: str,
                  model_provider: str,
-                 system_prompt,
+                 system_prompt: dict[str, ChatPromptTemplate],
                  transcript_folder_path,
                  api_call_buffer: int):
 
         self.model = init_chat_model(model=model,
                                      model_provider=model_provider)
-        self.system_prompt = system_prompt
+        self.system_prompt = {prompt_name: prompt.format_messages()[0].content
+                              for prompt_name, prompt in system_prompt.items()}
+        print(f"system_prompt\n{self.system_prompt}")
         self.transcript_folder_path = transcript_folder_path.rstrip('/')
         self.api_call_buffer = api_call_buffer # set buffer second to stay within the free version RPM limit
         self._setup_graph()
@@ -44,7 +48,7 @@ class BackEndAgent:
         :return: string of json of the structured earning call transcript
         """
         messages = [
-            SystemMessage(content=self.system_prompt.PREPROCESS_SYSTEM_PROMPT),
+            SystemMessage(content=self.system_prompt["PREPROCESS_SYSTEM_PROMPT"]),
             HumanMessage(content=state.transcript)
         ]
         response = self.model.invoke(messages)
@@ -62,7 +66,7 @@ class BackEndAgent:
         transcript_json = json.loads(transcript_json_tmp)
         for i, section in enumerate(transcript_json["sections"]):
             messages = [
-                SystemMessage(content=self.system_prompt.ANALYSIS_SYSTEM_PROMPT),
+                SystemMessage(content=self.system_prompt["ANALYSIS_SYSTEM_PROMPT"]),
                 HumanMessage(content=section["statement"])
             ]
             response_content = self.model.invoke(messages).content
