@@ -1,6 +1,3 @@
-from frontend_agent import ChatbotAgent
-import tools
-import utils
 from dotenv import load_dotenv
 import os
 from urllib.error import URLError
@@ -8,19 +5,16 @@ import streamlit as st
 import plotly.express as px
 from langchain.chat_models import init_chat_model
 from langchain_core.messages import SystemMessage, HumanMessage
+from langsmith import Client
 import pandas as pd
 import asyncio
 
+import tools
+import utils
+from frontend_agent import ChatbotAgent
 from system_prompts import prompts
 
 load_dotenv("../venv")
-
-# Use the below for running app locally without docker
-#API_PATH = "../config/google_ai_studio_api.txt"
-#if not os.environ.get("GOOGLE_API_KEY"):
-#    with open(API_PATH, "r", encoding='utf-8') as f:
-#        api_key = f.read()
-#    os.environ["GOOGLE_API_KEY"] = api_key
 
 # Set GOOGLE_API_KEY by first source set_api_key.sh in config. Use this for docker
 os.environ["GOOGLE_API_KEY"] = os.environ["GOOGLE_API_KEY"].rstrip()
@@ -38,10 +32,17 @@ api_call_buffer = 0
 
 tool_list = [tools.get_stock_price, tools.get_today_date]
 
-preprocess_system_prompt = prompts.PREPROCESS_SYSTEM_PROMPT
-analysis_system_prompt = prompts.ANALYSIS_SYSTEM_PROMPT
-chatbot_system_prompt = prompts.CHATBOT_SYSTEM_PROMPT
-chatbot_user_prompt = prompts.CHATBOT_USER_PROMPT
+# Load prompts
+print(f"Load prompts from langsmith")
+client = Client()
+prompt_list = client.list_prompts(is_public=False)
+prompt_dict = {}
+for p in prompt_list.repos:
+    prompt_name = f"{p.repo_handle}:{p.last_commit_hash[:8]}"
+    prompt_dict[p.description] = client.pull_prompt(prompt_name)
+
+chatbot_user_prompt = prompt_dict["CHATBOT_USER_PROMPT"].format_messages()[0].content
+
 
 TRANSCRIPT_FOLDER_PATH = "./data/raw"
 OUTPUT_FOLDER_PATH = "./data/processed"
@@ -120,7 +121,7 @@ try:
                                model_provider=model_provider,
                                tool_list=tool_list,
                                api_call_buffer=api_call_buffer,
-                               system_message=chatbot_system_prompt).graph
+                               system_message=prompt_dict["CHATBOT_SYSTEM_PROMPT"]).graph
 
         if "model" not in st.session_state:
             st.session_state["model"] = model

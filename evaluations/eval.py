@@ -2,11 +2,15 @@ from langsmith import Client
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain.chat_models import init_chat_model
 from langsmith.utils import LangSmithError
+from langchain_core.prompts.chat import ChatPromptTemplate
 import os
 import json
+import copy
 
 from system_prompts import prompts
-from src import frontend_agent, tools, utils
+from src import tools, utils
+from src.frontend_agent import ChatbotAgent
+from src.backend_agent import BackEndAgent
 
 os.environ["GOOGLE_API_KEY"] = os.environ["GOOGLE_API_KEY"].rstrip()
 os.environ["LANGSMITH_API_KEY"] = os.environ["LANGSMITH_API_KEY"].rstrip()
@@ -22,44 +26,70 @@ validator_model = "gemini-2.5-flash"
 validator_model_provider = "google_genai"
 tool_list = [tools.get_stock_price, tools.get_today_date]
 api_call_buffer = 0
-system_message = prompts.CHATBOT_SYSTEM_PROMPT
-config = {"configurable": {"thread_id": "1"}}
-chatbot = frontend_agent.ChatbotAgent(model=model,
-                                      model_provider=model_provider,
-                                      tool_list=tool_list,
-                                      api_call_buffer=api_call_buffer,
-                                      system_message=system_message).graph
+CONFIG = {"configurable": {"thread_id": "1"}}
+TRANSCRIPT_FOLDER_PATH = "./data/raw"
 
+def run_backend(stock, year, quarter, agent):
+    context = {"ticker": stock.lower(),
+               "year": year,
+               "quarter": quarter,
+               }
+    final_state = agent.graph.invoke(context, CONFIG)
 
-def call_price_classifier(inputs: dict) -> dict:
-    """
+    return final_state
 
-    :param inputs: has the format of {'text':'...'}
-    :return:
-    """
-    message_input = {"messages": [HumanMessage(content=inputs["text"])]}
-    responses = chatbot.invoke(message_input, config)["messages"][-1].content
+def run_frontend(backend_final_state,
+                 type_filter,
+                 sentiment_filter,
+                 chatbot_user_prompt,
+                 user_prompt,
+                 agent):
 
-    instructions = (
-        "Review the given chatbot responses, determine if it discussed the stock performance OR "
-        "forward-looking advice."
-        "Respond with 'Yes' if it does and 'No' if it doesn't."
-    )
-    messages = [
-        SystemMessage(content=instructions),
-        HumanMessage(content=responses)
-    ]
-    validator = init_chat_model(model=validator_model,
-                                 model_provider=validator_model_provider)
-    validator_responses = validator.invoke(messages)
-    return {"class": validator_responses.content}
+    transcript_json = backend_final_state["transcript_json"]
+    df_summary = utils.convert_json_to_df_filtered(transcript_json_str=transcript_json,
+                                                   type_filter=type_filter,
+                                                   sentiment_filter=sentiment_filter)
+    metadata_lite = {"stock": backend_final_state["ticker"],
+                     "year": backend_final_state["year"],
+                     "quarter": backend_final_state["quarter"]}
+    human_message = chatbot_user_prompt.format(metadata_lite,
+                                               df_summary.values,
+                                               user_prompt)
+    message_input = {"messages": [HumanMessage(content=human_message)]}
+    response = agent.graph.invoke(message_input, CONFIG)["messages"][-1].content
 
+    return response
 
-def metric(inputs:dict, outputs: dict, reference_outputs: dict) -> bool:
+def call_eval_with_instruction(chat_prompt: ChatPromptTemplate, **kwargs):
+    def call_eval(inputs: dict) -> dict:
+        """
+        :param inputs: has the format of {'text':'...'}
+        :return:
+        """
+        chatbot_responses = run_frontend(backend_final_state=kwargs["backend_final_state"],
+                                         type_filter=kwargs["type_filter"],
+                                         sentiment_filter=kwargs["sentiment_filter"],
+                                         chatbot_user_prompt=kwargs["chatbot_user_prompt"],
+                                         user_prompt=inputs["text"],
+                                         agent=kwargs["chatbot"])
+
+        chat_prompt_copy = copy.deepcopy(chat_prompt)
+        chat_prompt_copy.extend([HumanMessage(content=chatbot_responses)])
+        validator_input = chat_prompt_copy.format_messages()
+        validator = init_chat_model(model=validator_model,
+                                     model_provider=validator_model_provider)
+        validator_responses = validator.invoke(validator_input)
+
+        return {"class": validator_responses.content}
+
+    return call_eval
+
+def accuracy_metric(inputs:dict, outputs: dict, reference_outputs: dict) -> bool:
     return outputs["class"] == reference_outputs["label"]
 
 
 if __name__ == "__main__":
+    # Set variables
     EVAL_DATA_PATH = "./data/evaluation/1_call_price_example.json"
     OUTPUT_FOLDER_PATH = "./data/processed"
     stock = 'nvda'
@@ -68,40 +98,76 @@ if __name__ == "__main__":
     metadata_lite = {"stock": stock,
                      "year": year,
                      "quarter": quarter}
-
-    transcript_json_str = utils.load_transcript_json(output_folder_path=OUTPUT_FOLDER_PATH,
-                                                     ticker=stock,
-                                                     quarter=quarter,
-                                                     year=year)
     type_filter = ["financial_results", "Q&A"]
     sentiment_filter = ["positive","mixed","negative"]
-    df_summary = utils.convert_json_to_df_filtered(transcript_json_str=transcript_json_str,
-                                                   type_filter=type_filter,
-                                                   sentiment_filter=sentiment_filter)
 
-    ls_client = Client()
+    client = Client()
+
+    # Load data
     with open(EVAL_DATA_PATH, "r", encoding="utf-8") as f:
         data = f.read()
-    examples_temp = json.loads(data)
-    examples = utils.reprompt_eval_test(examples_temp,
-                                        prompts.CHATBOT_USER_PROMPT,
-                                        metadata_lite,
-                                        df_summary)["examples"]
+    examples = json.loads(data)["examples"]
 
     test_name = "call_price_test"
     try:
-        dataset = ls_client.read_dataset(dataset_name=test_name)
+        dataset = client.read_dataset(dataset_name=test_name)
     except LangSmithError:
-        dataset = ls_client.create_dataset(dataset_name=test_name)
+        dataset = client.create_dataset(dataset_name=test_name)
 
-    ls_client.create_examples(
+    client.create_examples(
         dataset_id=dataset.id,
         examples=examples
     )
 
-    print(f"dataset.name: {dataset.name}")
-    results = ls_client.evaluate(
-        call_price_classifier,
+    # Load prompts
+    prompt_list = client.list_prompts(is_public=False)
+    prompt_dict = {}
+    for p in prompt_list.repos:
+        prompt_name = f"{p.repo_handle}:{p.last_commit_hash[:8]}"
+        prompt_dict[p.description] = client.pull_prompt(prompt_name)
+
+    # Load agents
+    chatbot = ChatbotAgent(model=model,
+                           model_provider=model_provider,
+                           tool_list=tool_list,
+                           api_call_buffer=api_call_buffer,
+                           system_message=prompt_dict["CHATBOT_SYSTEM_PROMPT"])
+
+    state_snapshot_path = f"./data/state_snapshot/{stock}_{year}_Q{quarter}_backend_final_state.json"
+    if os.path.exists(state_snapshot_path):
+        print(f"{state_snapshot_path} exists. Read from file")
+        with open(state_snapshot_path, "r", encoding="utf-8") as f:
+            backend_final_state = json.loads(f.read())
+    else:
+        backendagent = BackEndAgent(model=model,
+                                    model_provider=model_provider,
+                                    system_prompt=prompt_dict,
+                                    transcript_folder_path=TRANSCRIPT_FOLDER_PATH,
+                                    api_call_buffer=api_call_buffer)
+        print(f"{state_snapshot_path} does not exist. Run backend agent")
+        backend_final_state = run_backend(stock=stock,
+                                          year=year,
+                                          quarter=quarter,
+                                          agent=backendagent)
+        with open(state_snapshot_path, "w", encoding="utf-8") as f:
+            f.write(json.dumps(backend_final_state))
+
+    agent_config = {
+        "type_filter": type_filter,
+        "sentiment_filter": sentiment_filter,
+        "chatbot": chatbot,
+        "backend_final_state": backend_final_state,
+        "chatbot_user_prompt":prompt_dict["CHATBOT_USER_PROMPT"].from_messages()[0].content
+    }
+
+    # Run evaluation
+    results = client.evaluate(
+        call_eval_with_instruction(chat_prompt=prompt_dict["EVAL_INSTRUCTION_PROMPT"], **agent_config),
         data=dataset.name,
-        evaluators=[metric],
+        evaluators=[accuracy_metric],
+        metadata={
+            "prompt_identifier":prompt_identifier,
+            "prompt_commit_tag":prompt_commit_tag
+        }
     )
+

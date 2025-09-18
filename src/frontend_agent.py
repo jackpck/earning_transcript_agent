@@ -1,12 +1,14 @@
 from langchain.chat_models import init_chat_model
 from langgraph.graph import START, END, StateGraph
 from langchain_core.messages import SystemMessage, ToolMessage
+from langchain_core.prompts.chat import ChatPromptTemplate
 from typing import List
 import os
 import time
 import ast
 import json
-from src.state import AgentState, FrontEndState
+
+from src.state import BackEndState, FrontEndState
 
 class ChatbotAgent:
     def __init__(self,
@@ -14,7 +16,7 @@ class ChatbotAgent:
                  model_provider: str,
                  tool_list: List,
                  api_call_buffer: int,
-                 system_message: str):
+                 system_message: ChatPromptTemplate):
 
         self.model = init_chat_model(model=model,
                                      model_provider=model_provider).bind_tools(tool_list)
@@ -34,7 +36,7 @@ class ChatbotAgent:
         graph.add_edge("tools", "llm")
         graph.add_edge(START, "llm")
         self.graph = graph.compile()
-        self.system_message = system_message
+        self.system_message = system_message.format_messages()[0].content
 
     def call_llm(self, state: FrontEndState):
         messages = state["messages"]

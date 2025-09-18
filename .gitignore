@@ -6,3 +6,4 @@ config/*api*
 __pycache__
 *.pyc
 *.pyo
+data/state_snapshot
