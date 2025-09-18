@@ -130,8 +130,23 @@ The chatbot system prompt is already designed to mitigate LLM failing to call th
 2. Change file permission: `chmod 400 ~/.ssh/my-key.pem`
 3. Login to AWS EC2 from terminal: `ssh -i ~/.ssh/my-key.pem ubuntu@<Public IPv4 address>`.
    The Public IPv4 address can be found in the Details tab of the instance.
+   
+### II. Set up security group
+1. Go to **EC2 > Instances > Security tab**
+2. Under Inbound rules, check the Port range. Default should be 22
+3. When creating an instance, if one select '*my IP*' as the source, the Source
+   should be your **public IP** (not the local/private IP that starts with 192.168.x.x). 
+   The public IP shown in Source should be the same as the one you get from typing in
+   the `Invoke-WebRequest ifconfig.me/ip` command in powershell
+4. Since in the Dockerfile we expose Port 8501, we need to make sure the
+   inbound rules port range is the same (8501). 
+   Go to **Network & Security > Security Groups > select security group > Inbound rules > edit inbound rules**
+5. Add rule:
+    - Type: SSH
+   - Port range: 8501
+   - Source: custom
 
-### II. Set up repo and pull docker image
+### III. Set up repo and pull docker image
 1. Once logged in, git clone the repo
 2. To install docker:
   - `sudo apt update`
@@ -140,10 +155,16 @@ The chatbot system prompt is already designed to mitigate LLM failing to call th
 3. Check if docker is installed properly: `docker info`
 4. Login to docker: `docker login`. This will prompt a confirmation code. Enter
    the code to the link `https://loging.docker.com/activate` to activate
-10. To grant EC2 permission to talk to the docker daemon, add user to the docker group by:
+5. To grant EC2 permission to talk to the docker daemon, add user to the docker group by:
   - `sudo usermod -aG docker $USER`
   - and run `newgrp docker` right after.
-11. You should be able to pull from docker:`docker pull <dockerhub-username>/earning_call_agent:latest`
+6. You should be able to pull from docker:`docker pull <dockerhub-username>/earning_call_agent:latest`
+   
+### IV. Run docker image
+1. Run docker with `docker run -p 8501:8501` + all the necessary API keys needed in runtime
+2. Instead of clicking one of the three urls from the CLI, go to the browser and type in 
+   `http://<Public IPv4 address>:8501`. Again Public IPv4 address is the one used to log onto the instance 
+   (see step I.3)
 
 ## Looking ahead for speedbumps
 - Langchain has relatively high latency due to abstraction. Therefore it is more suitable for prototyping
