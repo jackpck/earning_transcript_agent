@@ -58,7 +58,7 @@ def my_chatbot(my_prompt):
     model = "gemini-2.5-flash"
     model_provider = "google_genai"
     tool_list = [tools.get_stock_price, tools.get_today_date]
-    api_call_buffer = 0
+    api_call_buffer = 5
     system_message = my_prompt["CHATBOT_SYSTEM_PROMPT"]
     chatbot = frontend_agent.ChatbotAgent(model=model,
                                           model_provider=model_provider,
