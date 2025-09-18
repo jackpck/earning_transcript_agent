@@ -46,18 +46,13 @@ if action == "push":
 elif action == "pull":
     # below is a demonstration of passing the pulled prompt to an LLM
 
-    prompt_list = client.list_prompts()
+    prompt_list = client.list_prompts(is_public=False)
     prompt_dict = {}
     for p in prompt_list.repos:
         prompt_name = f"{p.repo_handle}:{p.last_commit_hash[:8]}"
-        print(prompt_name)
-        # added below to avoid pulling random prompts that do not belong. Probably a bug from langsmith
-        try:
-            prompt_dict[p.description] = client.pull_prompt(prompt_name)
-        except:
-            break
+        prompt_dict[p.description] = client.pull_prompt(prompt_name)
 
-    #print({k: v.format_messages()[0].content for k,v in prompt_dict.items()})
+    print({k: v.format_messages()[0].content for k,v in prompt_dict.items()})
 
     test_prompt_name = "EVAL_INSTRUCTION_PROMPT"
     prompt_dict[f"{test_prompt_name}"].extend([HumanMessage(content="Buy nvda!")])

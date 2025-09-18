@@ -120,14 +120,11 @@ if __name__ == "__main__":
     )
 
     # Load prompts
-    prompt_list = client.list_prompts()
+    prompt_list = client.list_prompts(is_public=False)
     prompt_dict = {}
     for p in prompt_list.repos:
         prompt_name = f"{p.repo_handle}:{p.last_commit_hash[:8]}"
-        try:
-            prompt_dict[p.description] = client.pull_prompt(prompt_name)
-        except:
-            break
+        prompt_dict[p.description] = client.pull_prompt(prompt_name)
 
     # Load agents
     chatbot = ChatbotAgent(model=model,
@@ -160,7 +157,7 @@ if __name__ == "__main__":
         "sentiment_filter": sentiment_filter,
         "chatbot": chatbot,
         "backend_final_state": backend_final_state,
-        "chatbot_user_prompt":prompt_dict["CHATBOT_USER_PROMPT"].from_messages()[0].context
+        "chatbot_user_prompt":prompt_dict["CHATBOT_USER_PROMPT"].from_messages()[0].content
     }
 
     # Run evaluation

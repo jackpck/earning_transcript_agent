@@ -9,6 +9,12 @@ from src import utils
 from src import tools
 
 os.environ["GOOGLE_API_KEY"] = os.environ["GOOGLE_API_KEY"].rstrip()
+os.environ["LANGSMITH_API_KEY"] = os.environ["LANGSMITH_API_KEY"].rstrip()
+os.environ["LANGSMITH_WORKSPACE_ID"] = os.environ["LANGSMITH_WORKSPACE_ID"].rstrip()
+os.environ["LANGSMITH_ENDPOINT"] = os.environ["LANGSMITH_ENDPOINT"].rstrip()
+os.environ["LANGSMITH_PROJECT"] = os.environ["LANGSMITH_PROJECT"].rstrip()
+os.environ["LANGSMITH_TRACING"] = os.environ["LANGSMITH_TRACING"].rstrip()
+os.environ["LANGCHAIN_CALLBACKS_BACKGROUND"] = os.environ["LANGCHAIN_CALLBACKS_BACKGROUND"].rstrip()
 load_dotenv("../venv")
 
 
@@ -61,14 +67,11 @@ if __name__ == "__main__":
     # Load prompts
     print(f"Load prompts from langsmith")
     client = Client()
-    prompt_list = client.list_prompts()
+    prompt_list = client.list_prompts(is_public=False)
     prompt_dict = {}
     for p in prompt_list.repos:
         prompt_name = f"{p.repo_handle}:{p.last_commit_hash[:8]}"
-        try:
-            prompt_dict[p.description] = client.pull_prompt(prompt_name)
-        except:
-            break
+        prompt_dict[p.description] = client.pull_prompt(prompt_name)
 
     user_prompt = """
     summarize the responses in less than 4 themes. Return:

@@ -1,9 +1,8 @@
 import pytest
 import os
 from langchain_core.messages import HumanMessage, AIMessage
-from langsmith import traceable
+from langsmith import Client
 
-from system_prompts import prompts
 from src import tools
 from src import frontend_agent
 from src import utils
@@ -31,6 +30,21 @@ transcript_json_str = utils.load_transcript_json(output_folder_path=OUTPUT_FOLDE
                                                  year=year)
 
 @pytest.fixture
+def my_prompt():
+    # Load prompts
+    client = Client(api_key=os.environ["LANGSMITH_API_KEY"])
+    prompt_list = client.list_prompts(is_public=False)
+    prompt_dict = {}
+    for p in prompt_list.repos:
+        prompt_name = f"{p.repo_handle}:{p.last_commit_hash[:8]}"
+        try:
+            prompt_dict[p.description] = client.pull_prompt(prompt_name)
+        except:
+            break
+    return prompt_dict
+
+
+@pytest.fixture
 def my_df_summary():
     type_filter = ["financial_results", "Q&A"]
     sentiment_filter = ["positive","mixed","negative"]
@@ -40,12 +54,12 @@ def my_df_summary():
     return df_summary
 
 @pytest.fixture
-def my_chatbot():
+def my_chatbot(my_prompt):
     model = "gemini-2.5-flash"
     model_provider = "google_genai"
     tool_list = [tools.get_stock_price, tools.get_today_date]
     api_call_buffer = 0
-    system_message = prompts.CHATBOT_SYSTEM_PROMPT
+    system_message = my_prompt["CHATBOT_SYSTEM_PROMPT"]
     chatbot = frontend_agent.ChatbotAgent(model=model,
                                           model_provider=model_provider,
                                           tool_list=tool_list,
@@ -53,7 +67,7 @@ def my_chatbot():
                                           system_message=system_message).graph
     return chatbot
 
-def test_no_tool_call(my_df_summary, my_chatbot):
+def test_no_tool_call(my_df_summary, my_chatbot, my_prompt):
     """
     Test if the given user prompt has no request for stock data,
     the stock price tool should NOT be called
@@ -61,9 +75,9 @@ def test_no_tool_call(my_df_summary, my_chatbot):
     test_prompt = """
     Summarize top 3 themes from the given list of responses
     """
-    human_message = prompts.CHATBOT_USER_PROMPT.format(metadata_lite,
-                                                       my_df_summary.values,
-                                                       test_prompt)
+    human_message = my_prompt["CHATBOT_USER_PROMPT"].format_messages()[0].content.format(metadata_lite,
+                                                                                 my_df_summary.values,
+                                                                                 test_prompt)
     message_input = {"messages": [HumanMessage(content=human_message)]}
     responses = my_chatbot.invoke(message_input, config)["messages"]
 
@@ -77,7 +91,7 @@ def test_no_tool_call(my_df_summary, my_chatbot):
     for response in responses:
         assert "tool_calls" not in response
 
-def test_tool_call(my_chatbot):
+def test_tool_call(my_chatbot, my_prompt):
     """
     Test if the given user prompt has a request for stock data,
     the stock price tool should be called
@@ -89,9 +103,9 @@ def test_tool_call(my_chatbot):
     response_prompt = """
     No response given.
     """
-    human_message = prompts.CHATBOT_USER_PROMPT.format(metadata_lite,
-                                                       response_prompt,
-                                                       test_prompt)
+    human_message = my_prompt["CHATBOT_USER_PROMPT"].format_messages()[0].content.format(metadata_lite,
+                                                                                 response_prompt,
+                                                                                 test_prompt)
     message_input = {"messages": [HumanMessage(content=human_message)]}
     responses = my_chatbot.invoke(message_input, config)["messages"]
 
