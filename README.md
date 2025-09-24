@@ -130,6 +130,8 @@ The chatbot system prompt is already designed to mitigate LLM failing to call th
 2. Change file permission: `chmod 400 ~/.ssh/my-key.pem`
 3. Login to AWS EC2 from terminal: `ssh -i ~/.ssh/my-key.pem ubuntu@<Public IPv4 address>`.
    The Public IPv4 address can be found in the Details tab of the instance.
+4. Create IAM user if you haven't. Add `AmazonEC2FullAccess` permission to the security group
+    in order to allow the user access to the instance created in root
    
 ### II. Set up security group
 1. Go to **EC2 > Instances > Security tab**
@@ -145,6 +147,11 @@ The chatbot system prompt is already designed to mitigate LLM failing to call th
     - Type: SSH
    - Port range: 8501
    - Source: custom
+6. Since user will pull prompts from langchain, outbound rules also need to be set:
+    - Type: HTTPS
+    - Protocal: TCP
+    - Port Range: 443
+    - Destination: 0.0.0.0/0
 
 ### III. Set up repo and pull docker image
 1. Once logged in, git clone the repo
@@ -161,11 +168,22 @@ The chatbot system prompt is already designed to mitigate LLM failing to call th
 6. You should be able to pull from docker:`docker pull <dockerhub-username>/earning_call_agent:latest`
    
 ### IV. Run docker image
-1. Run docker with `docker run -p 8501:8501` + all the necessary API keys needed in runtime
+1. Run docker with `docker run -p 8501:8501` + all the necessary API keys needed in runtime. If want to run 
+   docker in CLI instead of docker desktop (absent on EC2), run `run_docker_image.sh`
 2. Instead of clicking one of the three urls from the CLI, go to the browser and type in 
    `http://<Public IPv4 address>:8501`. Again Public IPv4 address is the one used to log onto the instance 
    (see step I.3)
+3. Make sure all LANGSMITH and LANGCHAIN api keys and env variables are setup on EC2.
+4. Now every device in the local network can access the streamlit app from 
+   `http://<Public IPv4 address>:8501`!
+   
+### V. AWS UI connection to EC2
+1. Go to **IAM > Users > Permissions > Policies**
+2. Create inline policies. In the json editor, follow the instruction in the link and
+   add the json: 
+https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-connect-configure-IAM-role.html
 
+   
 ## Looking ahead for speedbumps
 - Langchain has relatively high latency due to abstraction. Therefore it is more suitable for prototyping
 rather than production
