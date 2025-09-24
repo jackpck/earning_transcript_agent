@@ -35,8 +35,7 @@ if __name__ == "__main__":
     startdate = '2025-01-01'
     enddate = '2025-03-01'
 
-    df = get_stock_price(symbol=symbol,
-                         startdate=startdate,
-                         enddate=enddate)
+    dat = yf.Ticker(symbol)
+    print(f"dat.quarterly_income_stmt\n{dat.quarterly_income_stmt}")
+    print("*"*30)
 
-    print(df)

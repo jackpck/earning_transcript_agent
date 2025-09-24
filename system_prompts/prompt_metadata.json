@@ -1,0 +1,27 @@
+{
+  "PREPROCESS_SYSTEM_PROMPT": {
+    "description": "PREPROCESS_SYSTEM_PROMPT",
+    "prompt_identifier": "backend-system-preprocess",
+    "tag_list": ["dev","v1"]
+  },
+  "ANALYSIS_SYSTEM_PROMPT": {
+    "description": "ANALYSIS_SYSTEM_PROMPT",
+    "prompt_identifier": "backend-system-analysis",
+    "tag_list": ["dev","v1"]
+  },
+  "CHATBOT_SYSTEM_PROMPT": {
+    "description": "CHATBOT_SYSTEM_PROMPT",
+    "prompt_identifier": "chatbot-system",
+    "tag_list": ["dev","v1"]
+  },
+  "CHATBOT_USER_PROMPT": {
+    "description": "CHATBOT_USER_PROMPT",
+    "prompt_identifier": "chatbot-user",
+    "tag_list": ["dev","v1"]
+  },
+  "EVAL_INSTRUCTION_PROMPT": {
+    "description": "EVAL_INSTRUCTION_PROMPT",
+    "prompt_identifier": "eval-system-instructions",
+    "tag_list": ["dev","v1"]
+  }
+}

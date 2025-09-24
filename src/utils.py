@@ -57,7 +57,6 @@ def load_transcript_json(output_folder_path,
 def convert_json_to_df_filtered(transcript_json_str: str,
                                 type_filter: list,
                                 sentiment_filter: list):
-
     """
     convert transcript in json str format, filter by type and sentiment, and return a df capturing
     the sentiment summary of each statement
